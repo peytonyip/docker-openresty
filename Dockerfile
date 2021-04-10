@@ -185,6 +185,9 @@ RUN apk add --no-cache --virtual .build-deps \
         openssl-${RESTY_OPENSSL_VERSION}.tar.gz openssl-${RESTY_OPENSSL_VERSION} \
         pcre-${RESTY_PCRE_VERSION}.tar.gz pcre-${RESTY_PCRE_VERSION} \
         openresty-${RESTY_VERSION}.tar.gz openresty-${RESTY_VERSION} \
+        ngx_brotli \
+        ngx_http_geoip2_module \
+        ngx_http_ipdb_module \
     && apk del .build-deps \
     && mkdir -p /var/run/openresty \
     && ln -sf /dev/stdout /usr/local/openresty/nginx/logs/access.log \
