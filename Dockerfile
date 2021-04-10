@@ -61,11 +61,21 @@ ARG RESTY_ADD_PACKAGE_BUILDDEPS="gcc \
 		openssl-dev \
 		pcre-dev \
 		gnupg1 \
-		libmaxminddb \
 		libmaxminddb-dev \
 		json-c-dev \
+        autoconf \
+		libtool \
+		automake \
+		git \
+		g++ \
+		cmake \
+        alpine-sdk \
+        perl \
         "
-ARG RESTY_ADD_PACKAGE_RUNDEPS=""
+ARG RESTY_ADD_PACKAGE_RUNDEPS="json-c \
+        libmaxminddb \
+        brotli-libs \
+        "
 ARG RESTY_EVAL_PRE_CONFIGURE=""
 ARG RESTY_EVAL_POST_MAKE=""
 
@@ -90,21 +100,8 @@ LABEL resty_add_package_rundeps="${RESTY_ADD_PACKAGE_RUNDEPS}"
 LABEL resty_eval_pre_configure="${RESTY_EVAL_PRE_CONFIGURE}"
 LABEL resty_eval_post_make="${RESTY_EVAL_POST_MAKE}"
 
-RUN set -x \
-  && apk add --no-cache --virtual .build-deps \
-    alpine-sdk \
-    perl \
-  && cd /tmp \
-  && wget https://github.com/maxmind/libmaxminddb/releases/download/${MAXMIND_VERSION}/libmaxminddb-${MAXMIND_VERSION}.tar.gz \
-  && tar xf libmaxminddb-${MAXMIND_VERSION}.tar.gz \
-  && cd libmaxminddb-${MAXMIND_VERSION} \
-  && ./configure \
-  && make \
-  && make check \
-  && make install \
-  && ldconfig || :
-  
 
+  
 RUN apk add --no-cache --virtual .build-deps \
         build-base \
         coreutils \
@@ -124,21 +121,23 @@ RUN apk add --no-cache --virtual .build-deps \
         libgcc \
         libxslt \
         zlib \
-        ${RESTY_ADD_PACKAGE_RUNDEPS} \
-    && apk add --no-cache --virtual .brotli-build-deps \
-		autoconf \
-		libtool \
-		automake \
-		git \
-		g++ \
-		cmake \
+        ${RESTY_ADD_PACKAGE_RUNDEPS}  \		
     && cd /tmp \
     && git clone https://github.com/leev/ngx_http_geoip2_module.git \
     && git clone https://github.com/peytonyip/ngx_http_ipdb_module.git \
     && git clone https://github.com/google/ngx_brotli.git \
+    && wget https://github.com/maxmind/libmaxminddb/releases/download/${MAXMIND_VERSION}/libmaxminddb-${MAXMIND_VERSION}.tar.gz \
+    && tar xf libmaxminddb-${MAXMIND_VERSION}.tar.gz \
+    && cd libmaxminddb-${MAXMIND_VERSION} \
+    && ./configure \
+    && make \
+    && make check \
+    && make install \
+    && ldconfig || : \
+    && cd /tmp \
     && cd ngx_brotli \
     && git submodule update --init \
-    && cd .. \
+    && cd /tmp \
     && if [ -n "${RESTY_EVAL_PRE_CONFIGURE}" ]; then eval $(echo ${RESTY_EVAL_PRE_CONFIGURE}); fi \
     && cd /tmp \
     && curl -fSL "${RESTY_OPENSSL_URL_BASE}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz" -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
@@ -189,32 +188,9 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk del .build-deps \
     && mkdir -p /var/run/openresty \
     && ln -sf /dev/stdout /usr/local/openresty/nginx/logs/access.log \
-    && ln -sf /dev/stderr /usr/local/openresty/nginx/logs/error.log \
-    && apk add --no-cache --virtual .gettext gettext \
-	\
-	&& scanelf --needed --nobanner /usr/local/openresty/bin/openresty /usr/local/openresty/nginx/modules/*.so /usr/bin/envsubst \
-			| awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
-			| sort -u \
-			| xargs -r apk info --installed \
-			| sort -u > /tmp/runDeps.txt
+    && ln -sf /dev/stderr /usr/local/openresty/nginx/logs/error.log 
 
 
-
-FROM alpine:latest
-
-COPY --from=0 /tmp/runDeps.txt /tmp/runDeps.txt
-COPY --from=0 /usr/local/openresty /usr/local/openresty
-COPY --from=0 /usr/bin/envsubst /usr/local/bin/envsubst
-
-
-RUN \
-	addgroup -S nginx \
-	&& adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
-	&& apk add --no-cache --virtual .nginx-rundeps tzdata $(cat /tmp/runDeps.txt) \
-	# forward request and error logs to docker log collector
-	&& mkdir -p /var/run/openresty \
-    && ln -sf /dev/stdout /usr/local/openresty/nginx/logs/access.log \
-    && ln -sf /dev/stderr /usr/local/openresty/nginx/logs/error.log
 
 # Add additional binaries into PATH for convenience
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin
