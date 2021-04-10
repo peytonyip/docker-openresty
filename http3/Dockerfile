@@ -184,8 +184,9 @@ RUN apk add --no-cache --virtual .build-deps \
     && cd /tmp \
     && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
-    && cd /tmp/openresty-${RESTY_VERSION} \
+    && cd /tmp/openresty-${RESTY_VERSION}/bundle/nginx-1.19.3 \
     && patch -p01 < /tmp/quiche/extras/nginx/nginx-1.16.patch \
+    && cd /tmp/openresty-${RESTY_VERSION} \
     && eval ./configure -j${RESTY_J} ${_RESTY_CONFIG_DEPS} ${RESTY_CONFIG_OPTIONS} ${RESTY_CONFIG_OPTIONS_MORE} ${RESTY_LUAJIT_OPTIONS} --build="quiche-$(git --git-dir=/tmp/quiche/.git rev-parse --short HEAD) "\
     && make -j${RESTY_J} \
     && make -j${RESTY_J} install \
