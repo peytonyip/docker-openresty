@@ -29,5 +29,5 @@ jobs:
         with:
           file: ./http3/Dockerfile
           context: .
-          push: false
-          tags: peytonyip/nginx-brotli:http3
+          push: true
+          tags: peytonyip/openresty-brotli:http3
